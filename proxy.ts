@@ -7,7 +7,7 @@ const SUPPORTED_CODES = new Set([
   'CZ', 'SG', 'MY',
 ])
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   // Vercel injects x-vercel-ip-country automatically on Edge
   const raw = request.headers.get('x-vercel-ip-country')
 
@@ -16,7 +16,7 @@ export function middleware(request: NextRequest) {
   if (raw) {
     // On Vercel — use IP-based country
     const resolved = SUPPORTED_CODES.has(raw) ? raw : 'US'
-    console.log(`[middleware] ip-country=${raw} resolved=${resolved}`)
+    console.log(`[proxy] ip-country=${raw} resolved=${resolved}`)
     response.headers.set('x-country', resolved)
     response.cookies.set('luma-country', resolved, {
       path: '/',

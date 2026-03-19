@@ -27,7 +27,7 @@ export default function SuccessPage() {
     <div className="relative min-h-screen">
       <Header />
       <main className="pt-24 sm:pt-28 pb-16">
-        <div className="container mx-auto px-4 sm:px-6 max-w-xs">
+        <div className="mx-auto px-4 sm:px-6 max-w-2xl">
           {/* Success checkmark */}
           <div className="flex justify-center mb-6">
             <div className="h-16 w-16 rounded-full bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center">

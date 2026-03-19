@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, ArrowRight, Check, Mail, Lock, Building, Eye, EyeOff, AlertCircle, MessageSquare } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Mail, Lock, Building, Eye, EyeOff, AlertCircle, MessageSquare, Gift, X } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { authService } from '@/lib/api'
@@ -66,12 +66,21 @@ export default function GetStartedPage() {
   const [currentStep, setCurrentStep] = useState<Step>(initialTier ? 'account' : 'pricing')
   const [tierFromUrl, setTierFromUrl] = useState<string | null>(initialTier)
   const [paymentIntentClientSecret, setPaymentIntentClientSecret] = useState<string | null>(null)
+  const referralTimeout = useRef<NodeJS.Timeout>(undefined)
+  const [referralValid, setReferralValid] = useState<boolean | null>(null)
+  const [referralName, setReferralName] = useState('')
   useEffect(() => {
     event('onboarding_start')
     detectCountry().then((code) => {
       setFormData(prev => prev.country === getVisitorCountry() ? { ...prev, country: code } : prev)
     })
-  }, [])
+    // Check for referral code in URL
+    const refCode = searchParams.get('ref')
+    if (refCode) {
+      setFormData(prev => ({ ...prev, referralCode: refCode.toUpperCase() }))
+      validateReferralCode(refCode.toUpperCase())
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [formData, setFormData] = useState({
     email: '',
@@ -89,7 +98,8 @@ export default function GetStartedPage() {
     useCase: '',
     expectedVolume: '',
     businessDescription: '',
-    additionalRequirements: ''
+    additionalRequirements: '',
+    referralCode: '',
   })
   // Compute dynamic transaction fees based on selected country
   const tierFees = useMemo(() => {
@@ -206,7 +216,8 @@ export default function GetStartedPage() {
         useCase: formData.useCase?.trim() || undefined,
         businessDescription: formData.businessDescription?.trim() || undefined,
         expectedVolume: formData.expectedVolume?.trim() || undefined,
-        additionalRequirements: formData.additionalRequirements?.trim() || undefined
+        additionalRequirements: formData.additionalRequirements?.trim() || undefined,
+        ...(formData.referralCode && referralValid && { referralCode: formData.referralCode }),
       })
 
       // Save auth tokens and user data
@@ -334,7 +345,8 @@ export default function GetStartedPage() {
             useCase: formData.useCase?.trim() || undefined,
             businessDescription: formData.businessDescription?.trim() || undefined,
             expectedVolume: formData.expectedVolume?.trim() || undefined,
-            additionalRequirements: formData.additionalRequirements?.trim() || undefined
+            additionalRequirements: formData.additionalRequirements?.trim() || undefined,
+            ...(formData.referralCode && referralValid && { referralCode: formData.referralCode }),
           })
 
           if (response.paymentIntentClientSecret) {
@@ -378,6 +390,28 @@ export default function GetStartedPage() {
     const prevIndex = currentStepIndex - 1
     if (prevIndex >= 0) {
       setCurrentStep(steps[prevIndex])
+    }
+  }
+
+  const validateReferralCode = async (code: string) => {
+    if (!code || code.length < 3) {
+      setReferralValid(null)
+      setReferralName('')
+      return
+    }
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3334'
+      const res = await fetch(`${API_URL}/referrals/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      })
+      const data = await res.json()
+      setReferralValid(data.valid)
+      setReferralName(data.referrerFirstName || '')
+    } catch {
+      setReferralValid(null)
+      setReferralName('')
     }
   }
 
@@ -624,6 +658,44 @@ export default function GetStartedPage() {
                       </div>
                       {errors.confirmPassword && (
                         <p className="text-red-500 text-xs sm:text-sm mt-1">{errors.confirmPassword}</p>
+                      )}
+                    </div>
+
+                    {/* Referral Code (Optional) */}
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
+                        Referral Code <span className="text-gray-500">(optional)</span>
+                      </label>
+                      <div className="relative">
+                        <Gift className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+                        <input
+                          type="text"
+                          value={formData.referralCode}
+                          onChange={(e) => {
+                            const code = e.target.value.toUpperCase()
+                            setFormData(prev => ({ ...prev, referralCode: code }))
+                            clearTimeout(referralTimeout.current)
+                            referralTimeout.current = setTimeout(() => validateReferralCode(code), 500)
+                          }}
+                          placeholder="e.g. JOHN-A7X3"
+                          className="w-full pl-10 sm:pl-12 pr-10 py-2.5 rounded-lg sm:rounded-xl border border-gray-700 bg-gray-900/50 text-sm sm:text-base text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                        />
+                        {referralValid === true && (
+                          <Check className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-green-400" />
+                        )}
+                        {referralValid === false && (
+                          <X className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-red-400" />
+                        )}
+                      </div>
+                      {referralValid === true && referralName && (
+                        <p className="mt-1 text-xs text-green-400">
+                          Referred by {referralName}!
+                        </p>
+                      )}
+                      {referralValid === false && formData.referralCode.length >= 3 && (
+                        <p className="mt-1 text-xs text-red-400">
+                          Invalid referral code
+                        </p>
                       )}
                     </div>
                   </div>

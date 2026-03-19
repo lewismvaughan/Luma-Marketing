@@ -10,7 +10,7 @@ const ZERO_DECIMAL_CURRENCIES = [
   'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf',
 ];
 
-function isZeroDecimal(currency: string): boolean {
+export function isZeroDecimal(currency: string): boolean {
   return ZERO_DECIMAL_CURRENCIES.includes(currency.toLowerCase());
 }
 

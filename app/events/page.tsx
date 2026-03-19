@@ -7,7 +7,7 @@ import Footer from '@/components/Footer'
 import { publicEventsApi, type PublicEvent } from '@/lib/api/events'
 import { CalendarDays, MapPin, Search, Ticket } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
-import { io, type Socket } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
 
 // --- Date helpers ---
 
@@ -155,7 +155,7 @@ function EventCard({ evt }: { evt: PublicEvent }) {
           <div className="space-y-1 text-xs text-gray-400">
             <div className="flex items-center gap-1.5">
               <CalendarDays className="h-3 w-3 text-gray-500 shrink-0" />
-              <span className="truncate">{getRelativeLabel(evt.startsAt, evt.timezone)} · {formatTime(evt.startsAt, evt.timezone)}</span>
+              <span className="truncate">{getRelativeLabel(evt.startsAt, evt.timezone)} · {formatTime(evt.startsAt, evt.timezone)}{evt.endsAt ? (new Date(evt.endsAt).toDateString() !== new Date(evt.startsAt).toDateString() ? ` – ${getRelativeLabel(evt.endsAt, evt.timezone)}, ${formatTime(evt.endsAt, evt.timezone)}` : ` – ${formatTime(evt.endsAt, evt.timezone)}`) : ''}</span>
             </div>
             {(evt.locationName || evt.locationAddress) && (
               <div className="flex items-center gap-1.5">
@@ -166,7 +166,7 @@ function EventCard({ evt }: { evt: PublicEvent }) {
           </div>
           {price && !soldOut && (
             <div className="mt-2 text-xs font-medium text-primary">
-              {price === 'Free' ? 'Free' : `From ${price}`}
+              {price === 'Free' || price === 'Free RSVP' ? price : `From ${price}`}
             </div>
           )}
         </div>
@@ -183,7 +183,7 @@ function EventCard({ evt }: { evt: PublicEvent }) {
           />
           {price && !soldOut && (
             <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm rounded-lg px-3 py-1 text-sm font-semibold text-white">
-              {price === 'Free' ? 'Free' : `From ${price}`}
+              {price === 'Free' || price === 'Free RSVP' ? price : `From ${price}`}
             </div>
           )}
           {soldOut && (
@@ -205,7 +205,7 @@ function EventCard({ evt }: { evt: PublicEvent }) {
           <div className="space-y-2 text-sm text-gray-400">
             <div className="flex items-center gap-2">
               <CalendarDays className="h-4 w-4 text-gray-500 shrink-0" />
-              <span>{getRelativeLabel(evt.startsAt, evt.timezone)} at {formatTime(evt.startsAt, evt.timezone)}</span>
+              <span>{getRelativeLabel(evt.startsAt, evt.timezone)} at {formatTime(evt.startsAt, evt.timezone)}{evt.endsAt ? (new Date(evt.endsAt).toDateString() !== new Date(evt.startsAt).toDateString() ? ` – ${getRelativeLabel(evt.endsAt, evt.timezone)}, ${formatTime(evt.endsAt, evt.timezone)}` : ` – ${formatTime(evt.endsAt, evt.timezone)}`) : ''}</span>
             </div>
             {(evt.locationName || evt.locationAddress) && (
               <div className="flex items-start gap-2">
@@ -274,26 +274,31 @@ export default function EventsPage() {
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3334'
     let socket: Socket | null = null
+    let cancelled = false
 
-    try {
-      socket = io(`${apiUrl}/public`, {
-        transports: ['websocket', 'polling'],
-        autoConnect: true,
-      })
+    import('socket.io-client').then(({ io }) => {
+      if (cancelled) return
+      try {
+        socket = io(`${apiUrl}/public`, {
+          transports: ['websocket', 'polling'],
+          autoConnect: true,
+        })
 
-      socket.on('connect', () => {
-        socket?.emit('join', 'events:public')
-      })
+        socket.on('connect', () => {
+          socket?.emit('join', 'events:public')
+        })
 
-      socket.on('EVENT_CREATED', () => fetchEvents())
-      socket.on('EVENT_UPDATED', () => fetchEvents())
-      socket.on('EVENT_DELETED', () => fetchEvents())
-      socket.on('TICKET_PURCHASED', () => fetchEvents())
-    } catch {
-      // Socket not available, graceful fallback
-    }
+        socket.on('EVENT_CREATED', () => fetchEvents())
+        socket.on('EVENT_UPDATED', () => fetchEvents())
+        socket.on('EVENT_DELETED', () => fetchEvents())
+        socket.on('TICKET_PURCHASED', () => fetchEvents())
+      } catch {
+        // Socket not available, graceful fallback
+      }
+    })
 
     return () => {
+      cancelled = true
       socket?.disconnect()
     }
   }, [fetchEvents])

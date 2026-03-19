@@ -9,7 +9,44 @@ import { publicEventsApi, type PublicEvent } from '@/lib/api/events'
 import { getStripePromise } from '@/lib/stripe'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { ArrowLeft, Clock, AlertCircle, Minus, Plus, Ticket, ShieldCheck, CalendarDays, MapPin, ShieldAlert, XCircle } from 'lucide-react'
-import { formatCurrency } from '@/lib/currency'
+import { formatCurrency, isZeroDecimal } from '@/lib/currency'
+import { getOnlineCardRate } from '@/lib/stripe-rates'
+
+// Luma platform fee: $1.00 flat per ticket (100 smallest units)
+const LUMA_FEE_FIXED_SMALLEST = 100
+
+/**
+ * Calculate total service fee ($1/ticket + Stripe processing pass-through).
+ * Uses gross-up so the vendor nets exactly the ticket subtotal.
+ */
+function calculateServiceFee(unitPrice: number, qty: number, currency: string) {
+  if (unitPrice <= 0) return { fee: 0, grandTotal: 0 }
+
+  const zd = isZeroDecimal(currency)
+  const mul = zd ? 1 : 100
+
+  const subtotalSmallest = Math.round(unitPrice * qty * mul)
+  const lumaFeeSmallest = LUMA_FEE_FIXED_SMALLEST * qty
+
+  const stripeRate = getOnlineCardRate(currency)
+  const stripePercent = stripeRate.percent / 100
+
+  // Gross-up: charge covers subtotal + Luma fee + Stripe fee
+  // Iterate to account for Stripe's independent rounding
+  let charge = Math.ceil(
+    (subtotalSmallest + lumaFeeSmallest + stripeRate.fixed) / (1 - stripePercent)
+  )
+  for (let i = 0; i < 10; i++) {
+    const stripeFee = Math.round(charge * stripePercent) + stripeRate.fixed
+    if (charge - lumaFeeSmallest - stripeFee >= subtotalSmallest) break
+    charge++
+  }
+
+  const grandTotal = charge / mul
+  const fee = grandTotal - unitPrice * qty
+
+  return { fee, grandTotal }
+}
 
 function CheckoutForm({
   event,
@@ -47,7 +84,9 @@ function CheckoutForm({
   const elements = useElements()
 
   const tier = event.tiers.find(t => t.id === tierId)
+  const currency = event?.currency || 'usd'
   const totalAmount = (tier?.price || 0) * quantity
+  const { fee: totalServiceFee, grandTotal } = calculateServiceFee(tier?.price || 0, quantity, currency)
 
   // Countdown timer
   useEffect(() => {
@@ -176,11 +215,25 @@ function CheckoutForm({
           <p className="text-xs text-gray-500 mt-2">{tier?.available} remaining · Max {maxPerOrder} per order</p>
         )}
 
-        <div className="border-t border-gray-800 mt-3 pt-3 flex justify-between">
-          <span className="text-white font-semibold text-sm">Total</span>
-          <span className="text-white font-semibold">
-            {totalAmount === 0 ? 'Free' : formatCurrency(totalAmount, event?.currency || 'usd')}
-          </span>
+        <div className="border-t border-gray-800 mt-3 pt-3 space-y-1.5">
+          {totalServiceFee > 0 && (
+            <>
+              <div className="flex justify-between">
+                <span className="text-gray-400 text-sm">Subtotal</span>
+                <span className="text-gray-300 text-sm">{formatCurrency(totalAmount, currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400 text-sm">Service fee</span>
+                <span className="text-gray-300 text-sm">{formatCurrency(totalServiceFee, currency)}</span>
+              </div>
+            </>
+          )}
+          <div className="flex justify-between">
+            <span className="text-white font-semibold text-sm">Total</span>
+            <span className="text-white font-semibold">
+              {grandTotal === 0 ? 'Free' : formatCurrency(grandTotal, currency)}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -254,7 +307,7 @@ function CheckoutForm({
         ) : totalAmount === 0 ? (
           event?.isRsvpOnly ? 'Confirm RSVP' : 'Reserve Tickets'
         ) : (
-          `Pay ${formatCurrency(totalAmount, event?.currency || 'usd')}`
+          `Pay ${formatCurrency(grandTotal, currency)}`
         )}
       </button>
 
@@ -428,6 +481,7 @@ export default function CheckoutPage() {
   }, [])
 
   const totalAmount = (tier?.price || 0) * quantity
+  const { grandTotal: grandTotalForElements } = calculateServiceFee(tier?.price || 0, quantity, event?.currency || 'usd')
   const stripePromise = getStripePromise()
 
   if (loading) {
@@ -435,7 +489,7 @@ export default function CheckoutPage() {
       <div className="relative min-h-screen">
         <Header />
         <main className="pt-24 sm:pt-28 pb-16">
-          <div className="container mx-auto px-4 sm:px-6 max-w-sm animate-pulse">
+          <div className="mx-auto px-4 sm:px-6 max-w-2xl animate-pulse">
             <div className="h-4 w-24 bg-gray-800 rounded mb-6" />
             <div className="h-7 w-40 bg-gray-800 rounded mb-2" />
             <div className="h-4 w-56 bg-gray-800 rounded mb-8" />
@@ -530,7 +584,7 @@ export default function CheckoutPage() {
     <div className="relative min-h-screen">
       <Header />
       <main className="pt-24 sm:pt-28 pb-16">
-        <div className="container mx-auto px-4 sm:px-6 max-w-sm">
+        <div className="mx-auto px-4 sm:px-6 max-w-2xl">
           {/* Back */}
           <Link
             href={`/events/${slug}`}
@@ -584,7 +638,7 @@ export default function CheckoutPage() {
               stripe={stripePromise}
               options={totalAmount > 0 ? {
                 mode: 'payment' as const,
-                amount: Math.round(totalAmount * 100),
+                amount: Math.round(grandTotalForElements * 100),
                 currency: (event?.currency || 'usd').toLowerCase(),
                 paymentMethodCreation: 'manual',
                 appearance: {

@@ -26,7 +26,9 @@
       "Bash(xargs ls:*)",
       "Bash(wc:*)",
       "Bash(ls:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(grep -r \"permission\\\\|privacy\\\\|Usage\" /mnt/c/Users/skull/Documents/GitHub/Luma-App --exclude-dir=node_modules --include=\"*.ts\" --include=\"*.tsx\" --include=\"*.js\" --include=\"*.json\" 2>/dev/null | head -40)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }

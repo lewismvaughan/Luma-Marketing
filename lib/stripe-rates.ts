@@ -251,6 +251,20 @@ export const COUNTRY_RATES: CountryRate[] = [
 
 const ratesByCode = new Map(COUNTRY_RATES.map(r => [r.code, r]))
 
+/** Estimated Stripe online card rate by currency. First match per currency wins (rates are identical within a currency). */
+const onlineRatesByCurrency = new Map<string, StripeRate>()
+for (const country of COUNTRY_RATES) {
+  const cur = country.currency.toLowerCase()
+  if (!onlineRatesByCurrency.has(cur)) {
+    onlineRatesByCurrency.set(cur, country.manualCard)
+  }
+}
+
+/** Get the estimated Stripe online card processing rate for a currency. Falls back to USD rates. */
+export function getOnlineCardRate(currency: string): StripeRate {
+  return onlineRatesByCurrency.get(currency.toLowerCase()) || onlineRatesByCurrency.get('usd')!
+}
+
 export function getCountryRate(code: string): CountryRate {
   return ratesByCode.get(code.toUpperCase()) || ratesByCode.get('US')!
 }

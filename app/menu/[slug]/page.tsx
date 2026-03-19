@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { publicMenuApi, type PublicCatalog, type PublicProduct } from '@/lib/api/menu'
-import { io, Socket } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
 import { ArrowLeft, Plus, Minus, ShoppingBag, MapPin, Clock, X, ChevronRight } from 'lucide-react'
 import { formatCurrency, formatCents } from '@/lib/currency'
 
@@ -61,33 +61,39 @@ export default function MenuPage() {
     if (!catalog) return
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3334'
+    let cancelled = false
 
-    const socket = io(`${apiUrl}/public`, {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 10000,
-    })
+    import('socket.io-client').then(({ io }) => {
+      if (cancelled) return
 
-    socketRef.current = socket
+      const socket = io(`${apiUrl}/public`, {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 10000,
+      })
 
-    socket.on('connect', () => {
-      socket.emit('join', `catalog:${catalog.id}`)
-    })
+      socketRef.current = socket
 
-    // Refetch menu data on any catalog change
-    socket.on('catalog:updated', () => {
-      refreshCatalog()
-    })
+      socket.on('connect', () => {
+        socket.emit('join', `catalog:${catalog.id}`)
+      })
 
-    socket.on('catalog:deleted', () => {
-      setError('This menu is no longer available')
-      setCatalog(null)
+      // Refetch menu data on any catalog change
+      socket.on('catalog:updated', () => {
+        refreshCatalog()
+      })
+
+      socket.on('catalog:deleted', () => {
+        setError('This menu is no longer available')
+        setCatalog(null)
+      })
     })
 
     return () => {
-      socket.disconnect()
+      cancelled = true
+      socketRef.current?.disconnect()
     }
   }, [catalog?.id, refreshCatalog])
 

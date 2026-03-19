@@ -33,6 +33,7 @@ export interface SignupData {
   expectedVolume?: string;
   useCase?: string;
   additionalRequirements?: string;
+  referralCode?: string;
 }
 
 export interface LoginResponse {

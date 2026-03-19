@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { publicEventsApi, type PublicEvent, type PublicTier } from '@/lib/api/events'
 import { CalendarDays, MapPin, Ticket, ArrowLeft, ExternalLink, Mail, ShieldAlert, AlertTriangle, Plus, Minus, Share2, Flame } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
-import { io, type Socket } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
 
 // --- Countdown hook ---
 
@@ -74,24 +74,29 @@ export default function EventPage() {
     if (!event) return
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3334'
     let socket: Socket | null = null
+    let cancelled = false
 
-    try {
-      socket = io(`${apiUrl}/public`, {
-        transports: ['websocket', 'polling'],
-        autoConnect: true,
-      })
+    import('socket.io-client').then(({ io }) => {
+      if (cancelled) return
+      try {
+        socket = io(`${apiUrl}/public`, {
+          transports: ['websocket', 'polling'],
+          autoConnect: true,
+        })
 
-      socket.on('connect', () => {
-        socket?.emit('join', `event:${event.id}`)
-      })
+        socket.on('connect', () => {
+          socket?.emit('join', `event:${event.id}`)
+        })
 
-      socket.on('TICKET_PURCHASED', () => fetchEvent())
-      socket.on('TICKET_REFUNDED', () => fetchEvent())
-    } catch {
-      // graceful fallback
-    }
+        socket.on('TICKET_PURCHASED', () => fetchEvent())
+        socket.on('TICKET_REFUNDED', () => fetchEvent())
+      } catch {
+        // graceful fallback
+      }
+    })
 
     return () => {
+      cancelled = true
       socket?.disconnect()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -289,7 +294,7 @@ export default function EventPage() {
                       <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wider mb-0.5 sm:mb-1">Date & Time</p>
                       <p className="text-xs sm:text-sm font-medium text-white">{formatDate(event.startsAt)}</p>
                       <p className="text-xs sm:text-sm text-gray-400">
-                        {formatTime(event.startsAt)} – {formatTime(event.endsAt)}
+                        {formatTime(event.startsAt)} – {formatDate(event.endsAt) !== formatDate(event.startsAt) ? `${formatDateShort(event.endsAt)}, ` : ''}{formatTime(event.endsAt)}
                       </p>
                     </div>
                   </div>

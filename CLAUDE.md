@@ -647,4 +647,30 @@ ffmpeg -i source.webm -filter_complex "[0:v]split[fwd][rev];[rev]reverse[r];[fwd
 
 ---
 
+## Code Review & Quality Enforcement
+
+All implementations will be reviewed by Codex. The following standards are enforced:
+
+### Code Standards
+- **TypeScript strict mode** — no `any` types unless explicitly justified
+- **Consistent naming** — camelCase for variables/functions, PascalCase for components/types, UPPER_SNAKE_CASE for constants
+- **No dead code** — unused imports, variables, components, or commented-out blocks must be removed
+- **Performance** — images must be optimized, animations must not block the main thread, bundle size must be monitored
+- **Accessibility** — proper semantic HTML, ARIA labels, keyboard navigation, sufficient color contrast
+- **SEO** — proper meta tags, structured data, and semantic headings on all public pages
+
+### Functionality Checks
+- **All code paths tested** — happy path, error cases, empty states, and loading states must be verified
+- **Onboarding flow** — signup wizard must handle all edge cases (Stripe failures, validation errors, back navigation)
+- **Static export compatibility** — no server-side features that break `next export`
+- **Cross-browser testing** — must work on Chrome, Safari, Firefox, and mobile browsers
+- **Responsive design** — all pages must work on mobile, tablet, and desktop viewports
+
+### Review Process
+- Codex will flag violations of these standards during review
+- PRs with unresolved violations will not be approved
+- When in doubt, prefer explicit over clever — readability and correctness over brevity
+
+---
+
 **Remember:** This is the first touchpoint for new vendors. Ensure fast load times, clear messaging, and a smooth onboarding experience. Test the full signup flow regularly.

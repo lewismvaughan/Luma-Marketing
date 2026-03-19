@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { publicMenuApi, type PreorderResponse } from '@/lib/api/menu'
-import { io, Socket } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
 import { Check, Clock, ChefHat, Bell, PartyPopper, XCircle, Mail, ArrowLeft, MapPin, Loader2 } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
 
@@ -133,6 +133,7 @@ export default function SuccessPage() {
     if (!preorderId || !customerEmail) return
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3334'
+    let cancelled = false
 
     const fetchPreorder = () => {
       publicMenuApi.getPreorderStatus(slug, preorderId, customerEmail)
@@ -142,42 +143,47 @@ export default function SuccessPage() {
         .catch(() => {})
     }
 
-    const socket = io(`${apiUrl}/public`, {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-    })
+    import('socket.io-client').then(({ io }) => {
+      if (cancelled) return
 
-    socketRef.current = socket
+      const socket = io(`${apiUrl}/public`, {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+      })
 
-    // Handle initial connection
-    socket.on('connect', () => {
-      setIsConnected(true)
-      socket.emit('join', `preorder:${preorderId}`)
-      // Always fetch fresh data on connect/reconnect
-      fetchPreorder()
-    })
+      socketRef.current = socket
 
-    socket.on('disconnect', () => {
-      setIsConnected(false)
-    })
-
-    // Handle all preorder events by fetching fresh data
-    const handlePreorderEvent = (data: { preorderId?: string; status?: string }) => {
-      if (data.preorderId === preorderId) {
+      // Handle initial connection
+      socket.on('connect', () => {
+        setIsConnected(true)
+        socket.emit('join', `preorder:${preorderId}`)
+        // Always fetch fresh data on connect/reconnect
         fetchPreorder()
-      }
-    }
+      })
 
-    socket.on('preorder:updated', handlePreorderEvent)
-    socket.on('preorder:ready', handlePreorderEvent)
-    socket.on('preorder:completed', handlePreorderEvent)
-    socket.on('preorder:cancelled', handlePreorderEvent)
+      socket.on('disconnect', () => {
+        setIsConnected(false)
+      })
+
+      // Handle all preorder events by fetching fresh data
+      const handlePreorderEvent = (data: { preorderId?: string; status?: string }) => {
+        if (data.preorderId === preorderId) {
+          fetchPreorder()
+        }
+      }
+
+      socket.on('preorder:updated', handlePreorderEvent)
+      socket.on('preorder:ready', handlePreorderEvent)
+      socket.on('preorder:completed', handlePreorderEvent)
+      socket.on('preorder:cancelled', handlePreorderEvent)
+    })
 
     return () => {
-      socket.disconnect()
+      cancelled = true
+      socketRef.current?.disconnect()
     }
   }, [preorderId, slug, customerEmail])
 

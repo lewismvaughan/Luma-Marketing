@@ -5,6 +5,13 @@ const nextConfig = {
   trailingSlash: true,
   experimental: {
     inlineCss: true,
+    optimizePackageImports: [
+      'lucide-react',
+      '@stripe/react-stripe-js',
+      '@stripe/stripe-js',
+      'framer-motion',
+      'socket.io-client',
+    ],
   },
   images: {
     domains: [],
