@@ -13,8 +13,8 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3333",
     "lint": "eslint .",
-    "build:dev": "dotenv -e .env.dev -- docker buildx build --platform linux/amd64,linux/arm64 --build-arg NEXT_PUBLIC_APP_NAME --build-arg NEXT_PUBLIC_APP_URL --build-arg NEXT_PUBLIC_API_URL --build-arg NEXT_PUBLIC_DASHBOARD_URL --build-arg NEXT_PUBLIC_IOS_DOWNLOAD_URL --build-arg NEXT_PUBLIC_ANDROID_DOWNLOAD_URL --build-arg NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY --label version=latest -t ghcr.io/ctrl-luma/lumapos-web:dev --push .",
-    "build:prod": "dotenv -e .env.prod -- docker buildx build --platform linux/amd64,linux/arm64 --build-arg NEXT_PUBLIC_APP_NAME --build-arg NEXT_PUBLIC_APP_URL --build-arg NEXT_PUBLIC_API_URL --build-arg NEXT_PUBLIC_DASHBOARD_URL --build-arg NEXT_PUBLIC_IOS_DOWNLOAD_URL --build-arg NEXT_PUBLIC_ANDROID_DOWNLOAD_URL --build-arg NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY --label version=latest -t ghcr.io/ctrl-luma/lumapos-web:latest --push .",
+    "build:dev": "dotenv -e .env.dev -- docker buildx build --platform linux/amd64,linux/arm64 --build-arg NEXT_PUBLIC_APP_NAME --build-arg NEXT_PUBLIC_APP_URL --build-arg NEXT_PUBLIC_API_URL --build-arg NEXT_PUBLIC_DASHBOARD_URL --build-arg NEXT_PUBLIC_IOS_DOWNLOAD_URL --build-arg NEXT_PUBLIC_ANDROID_DOWNLOAD_URL --build-arg NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY --label version=latest -t ghcr.io/lewismvaughan/lumapos-web:dev --push .",
+    "build:prod": "dotenv -e .env.prod -- docker buildx build --platform linux/amd64,linux/arm64 --build-arg NEXT_PUBLIC_APP_NAME --build-arg NEXT_PUBLIC_APP_URL --build-arg NEXT_PUBLIC_API_URL --build-arg NEXT_PUBLIC_DASHBOARD_URL --build-arg NEXT_PUBLIC_IOS_DOWNLOAD_URL --build-arg NEXT_PUBLIC_ANDROID_DOWNLOAD_URL --build-arg NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY --label version=latest -t ghcr.io/lewismvaughan/lumapos-web:latest --push .",
     "build:all": "npm run build:dev && npm run build:prod"
   },
   "dependencies": {
