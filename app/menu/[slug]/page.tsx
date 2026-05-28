@@ -69,9 +69,10 @@ export default function MenuPage() {
       const socket = io(`${apiUrl}/public`, {
         transports: ['websocket', 'polling'],
         reconnection: true,
-        reconnectionAttempts: Infinity,
+        // Bounded — Infinity meant a stuck tab would hammer the API forever.
+        reconnectionAttempts: 20,
         reconnectionDelay: 1000,
-        reconnectionDelayMax: 10000,
+        reconnectionDelayMax: 30000,
       })
 
       socketRef.current = socket

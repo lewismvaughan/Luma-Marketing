@@ -149,9 +149,11 @@ export default function SuccessPage() {
       const socket = io(`${apiUrl}/public`, {
         transports: ['websocket', 'polling'],
         reconnection: true,
-        reconnectionAttempts: Infinity,
+        // Bounded — Infinity meant a stuck order-tracking tab would hammer
+        // the API forever if WS dropped.
+        reconnectionAttempts: 20,
         reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
+        reconnectionDelayMax: 30000,
       })
 
       socketRef.current = socket

@@ -82,6 +82,9 @@ export default function EventPage() {
         socket = io(`${apiUrl}/public`, {
           transports: ['websocket', 'polling'],
           autoConnect: true,
+          // Bounded so a stuck event page can't hammer the API indefinitely.
+          reconnectionAttempts: 20,
+          reconnectionDelayMax: 30000,
         })
 
         socket.on('connect', () => {
